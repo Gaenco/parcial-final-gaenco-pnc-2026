@@ -23,14 +23,16 @@ public class BookService {
     }
 
     public Book createBook(BookRequestDto dto) {
+        Genre genreEnum = Genre.valueOf(dto.getGenre().toUpperCase());
+
         Book book = new Book();
         book.setTitle(dto.getTitle());
         book.setAuthor(dto.getAuthor());
-        book.setGenre(Genre.valueOf(dto.getGenre()));
+        book.setGenre(genreEnum);
         book.setIsbn(dto.getIsbn());
-        book.setAvailable(dto.isAvailable());
         book.setAvailableCount(dto.getAvailableCount());
-        book.setActive(true);
+        book.setAvailable(dto.getAvailableCount() > 0);
+
         return bookRepository.save(book);
     }
 
@@ -40,14 +42,17 @@ public class BookService {
     }
 
     public List<Book> getAllBooks(String author, String genre) {
-        if (author != null && genre != null) {
-            return bookRepository.findByAuthorAndGenre(genre, author);
+        Genre genreEnum = genre != null ? Genre.valueOf(genre.toUpperCase()) : null;
+
+        if (author != null && genreEnum != null) {
+            return bookRepository.findByAuthorAndGenre(author, genreEnum);
         } else if (author != null) {
             return bookRepository.findByAuthor(author);
-        } else if (genre != null) {
-            return bookRepository.findByGenre(Genre.valueOf(genre));
+        } else if (genreEnum != null) {
+            return bookRepository.findByGenre(genreEnum);
+        } else {
+            return bookRepository.findAll();
         }
-        return bookRepository.findAll();
     }
 
     public Book updateBook(UUID id, BookRequestDto dto) {
@@ -72,19 +77,6 @@ public class BookService {
     }
 
     public List<GenreCountDto> getGenresAvailable() {
-        List<Book> books = bookRepository.findAll();
-        Map<String, Long> countByGenre = new HashMap<>();
-
-        for (Book book : books) {
-            String genreName = book.getGenre().name();
-            countByGenre.put(genreName, countByGenre.getOrDefault(genreName, 0L) + 1);
-        }
-
-        List<GenreCountDto> result = new ArrayList<>();
-        for (Map.Entry<String, Long> entry : countByGenre.entrySet()) {
-            result.add(new GenreCountDto(entry.getKey(), entry.getValue()));
-        }
-
-        return result;
+        return bookRepository.countBooksByGenre();
     }
 }

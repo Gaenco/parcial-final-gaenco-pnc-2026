@@ -8,6 +8,7 @@ import com.example.parcial.parcial2.domain.entities.MovementType;
 import com.example.parcial.parcial2.repositories.BookRepository;
 import com.example.parcial.parcial2.repositories.LectorRepository;
 import com.example.parcial.parcial2.repositories.MovementRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -28,40 +29,48 @@ public class MovementService {
     }
 
     public Movement borrowBook(MovementRequestDto dto) {
-        return createMovement(dto, MovementType.BORROWING);
+        Book book = bookRepository.findByIsbn(dto.getIsbn())
+                .orElseThrow(() -> new EntityNotFoundException("Libro no encontrado"));
+        Lector lector = lectorRepository.findByEmail(dto.getEmail())
+                .orElseThrow(() -> new EntityNotFoundException("Lector no encontrado"));
+
+        if (book.getAvailableCount() <= 0) {
+            throw new IllegalStateException("No hay copias disponibles de este libro");
+        }
+
+        book.setAvailableCount(book.getAvailableCount() - 1);
+        book.setAvailable(book.getAvailableCount() > 0);
+        bookRepository.save(book);
+
+        return saveMovement(book, lector, MovementType.BORROWING);
     }
 
     public Movement returnBook(MovementRequestDto dto) {
-        return createMovement(dto, MovementType.RETURN);
-    }
-
-    private Movement createMovement(MovementRequestDto dto, MovementType type) {
-        Lector lector = lectorRepository.findByEmail(dto.getEmail())
-                .orElseThrow(() -> new RuntimeException("Lector not found"));
-
         Book book = bookRepository.findByIsbn(dto.getIsbn())
-                .orElseThrow(() -> new RuntimeException("Book not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Libro no encontrado"));
+        Lector lector = lectorRepository.findByEmail(dto.getEmail())
+                .orElseThrow(() -> new EntityNotFoundException("Lector no encontrado"));
 
-        if (type == MovementType.BORROWING) {
-            if (!book.isAvailable()) {
-                throw new RuntimeException("Book is not available");
-            }
-            book.setAvailableCount(book.getAvailableCount() - 1);
-            if (book.getAvailableCount() == 0) {
-                book.setAvailable(false);
-            }
-        } else {
-            book.setAvailableCount(book.getAvailableCount() + 1);
+        boolean tienePrestamoActivo = movementRepository
+                .existsActiveBorrowing(book.getId(), lector.getId());
+
+        if (!tienePrestamoActivo) {
+            throw new IllegalStateException("Este lector no tiene un préstamo activo de este libro");
         }
 
+        book.setAvailableCount(book.getAvailableCount() + 1);
+        book.setAvailable(true);
         bookRepository.save(book);
 
+        return saveMovement(book, lector, MovementType.RETURN);
+    }
+
+    private Movement saveMovement(Book book, Lector lector, MovementType type) {
         Movement movement = new Movement();
-        movement.setLector(lector);
         movement.setBook(book);
+        movement.setLector(lector);
         movement.setTimestamp(Instant.now());
         movement.setType(type);
-
         return movementRepository.save(movement);
     }
 }

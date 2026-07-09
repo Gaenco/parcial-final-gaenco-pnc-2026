@@ -1,4 +1,4 @@
-# [Nombre] [Carné]
+# [Gabriel Enrique Cortez Joya] [00037021]
 
 ## Indicaciones
 
@@ -26,6 +26,8 @@ Actualmente:
 
 **Instrucción:** Explique la causa del problema y resuélvalo.
 
+**Causa:** El método findByAuthorAndGenre en BookRepository recibía el parámetro de género
+como String, cuando el campo genre en la entidad Book es de tipo Genre
 ---
 
 ### 2. Error al volver a prestar un libro (10%)
@@ -34,6 +36,10 @@ Un usuario reportó que al pedir prestado el libro **The Selfish Gene**, devolve
 
 **Instrucción:** Explique la causa del problema y resuélvalo.
 
+**Causa:** MovementService.borrowBook() y returnBook() no estaban implementados de manera correcta. Al implementar
+la lógica, la causa raíz de este bug es que Book.availableCount no se restauraba
+correctamente al devolver el libro, dejando el contador en 0  tras el primer préstamo.
+
 ---
 
 ### 3. Cantidad de libros por género (10%)
@@ -41,6 +47,9 @@ Un usuario reportó que al pedir prestado el libro **The Selfish Gene**, devolve
 Existe un endpoint que devuelve la cantidad de libros disponibles por género. Sin embargo, actualmente dicho endpoint falla.
 
 **Instrucción:** Explique la causa del problema y resuélvalo.
+
+**Causa:** GenreCountDto define su constructor como (String genre, long count), pero
+Book.genre es de tipo Genre (enum). 
 
 ---
 
@@ -54,6 +63,7 @@ GET /books?id=ed16ed1e-7017-4697-a08a-d28c09a74acf
 
 **Instrucción:** Explique la causa del problema.
 
+**Causa:** Esto es un error de como se escribe el endpoint, el backend toma /books/{id} y no /books?id={id}. 
 ---
 
 ### 5. Error al crear un libro (10%)
@@ -73,6 +83,10 @@ QA ha reportado que el siguiente payload enviado al endpoint `POST /books` provo
 
 **Instrucción:** Explique la causa del problema.
 
+
+**Causa:** El enum Genre define sus constantes en mayúsculas El payload de la petición envía el valor en minúscula ("genre": "classic"). El método
+Enum.valueOf() es case-sensitive, por lo que al convertir el String recibido directamente
+con Genre.valueOf(dto.getGenre()), da error de  No enum constant Genre.classic.
 ---
 
 ### 6. Devolución de libros no prestados (20%)
@@ -85,4 +99,6 @@ QA ha reportado que un usuario es capaz de devolver libros que nunca ha solicita
 - Si es posible, explique la causa y resuelva el problema.
 - Si no es posible, explique por qué, haciendo referencia al código correspondiente.
 
+**Causa:** MovementRepository no contaba con ningún método que validara la existencia de un
+préstamo activo antes de registrar una devolución.
 ---
